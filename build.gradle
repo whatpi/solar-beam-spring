@@ -1,7 +1,9 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.4'
-	id 'io.spring.dependency-management' version '1.1.7'
+	id 'org.springframework.boot' version '3.3.2'
+	id 'io.spring.dependency-management' version '1.1.5'
+	// Flyway 플러그인 버전은 그대로 유지합니다.
+	id 'org.flywaydb.flyway' version '10.15.0'
 }
 
 group = 'com.skkrypto'
@@ -13,21 +15,55 @@ java {
 	}
 }
 
+// Flyway Gradle 작업(flywayRepair 등)을 위한 설정
+flyway {
+	url = 'jdbc:postgresql://localhost:5432/solar_beam'
+	// 사용자 이름 오타 수정: progres -> postgres
+	user = 'postgres'
+	password = 'tjdgus337'
+}
+
 repositories {
 	mavenCentral()
 }
 
 dependencies {
+	// 1. Spring Data JPA 스타터
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// 2. PostgreSQL 드라이버 (애플리케이션 실행에 필수)
+	runtimeOnly 'org.postgresql:postgresql'
+
+	// 3. Flyway 의존성 (스프링 부트가 자동 감지하고 실행)
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+
+	// 테스트 의존성
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// 개발 도구
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	// Lombok
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.10.3'
+
+//	flywayRuntime 'org.postgresql:postgresql:42.6.0'
+
+//	flyway 'org.postgresql:postgresql'
+
+//	// --- 여기부터 수정 ---
+//	// Flyway Gradle 플러그인이 사용할 의존성을 'flywayPlugins' 설정에 추가합니다.
+//	// 이렇게 해야 ./gradlew flywayRepair 같은 명령이 동작합니다.
+//	flywayPlugins 'org.flywaydb:flyway-database-postgresql'
+//	flywayPlugins 'org.postgresql:postgresql'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
 }
-
-spring:
-  flyway:
-    enabled: true

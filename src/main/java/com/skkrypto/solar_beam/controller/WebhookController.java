@@ -1,6 +1,5 @@
 package com.skkrypto.solar_beam.controller;
 
-import com.skkrypto.solar_beam.dto.SolanaBlockNotification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -16,11 +15,11 @@ public class WebhookController {
     // 로그 출력을 위한 Logger 객체 생성
     private static final Logger logger = LoggerFactory.getLogger(WebhookController.class);
 
-    /**
-     * QuickNode의 솔라나 newBlock 웹훅을 수신하는 엔드포인트입니다.
-     * @param notification QuickNode로부터 받은 블록 데이터
-     * @return 성공적으로 수신했음을 알리는 HTTP 200 OK 응답
-     */
+//    /**
+//     * QuickNode의 솔라나 newBlock 웹훅을 수신하는 엔드포인트입니다.
+//     * @param notification QuickNodded 받은 블록 데이터
+//     * @return 성공적으로 수신했음을 알리는 HTTP 200 OK 응답
+//     */
     @PostMapping("/solana-block")
     public ResponseEntity<String> handleSolanaBlockWebhook(@RequestBody String rawJson) {
         // 1. 수신된 데이터 로그 출력 (디버깅 및 확인용)
