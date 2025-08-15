@@ -17,6 +17,11 @@ public class AccountKeyDto {
     @JsonProperty("writable")
     private boolean writable;
 
-    // Getters and Setters
-    // ... 모든 필드에 대한 Getter/Setter 추가 ...
+    public String getPubkey() { return pubkey; }
+
+    public boolean isSigner() { return signer; }
+
+    public String getSource() { return source; }
+
+    public boolean isWritable() { return writable; }
 }

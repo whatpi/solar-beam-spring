@@ -1,7 +1,6 @@
 package com.skkrypto.solar_beam.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.skkrypto.solar_beam.dto.OrchestraRequestDto;
 import com.skkrypto.solar_beam.service.OrchestraQuickNodeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,8 +8,6 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.nio.ByteBuffer;
 
 @RestController
 @RequestMapping("/api/webhook") // 공통 경로 설정

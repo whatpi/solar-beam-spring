@@ -13,14 +13,14 @@ public class SolanaTransactionDto {
     @JsonProperty("transaction")
     private TransactionDto transaction;
 
-    @JsonProperty("version")
-    private int version;
+//    @JsonProperty("version")
+//    private int version;
 
-//    // Getters and Setters
-//    public MetaDto getMeta() { return meta; }
-//    public void setMeta(MetaDto meta) { this.meta = meta; }
-//    public TransactionDto getTransaction() { return transaction; }
-//    public void setTransaction(TransactionDto transaction) { this.transaction = transaction; }
+    // Getters and Setters
+    public MetaDto getMeta() { return meta; }
+    public void setMeta(MetaDto meta) { this.meta = meta; }
+    public TransactionDto getTransaction() { return transaction; }
+    public void setTransaction(TransactionDto transaction) { this.transaction = transaction; }
 //    public int getVersion() { return version; }
 //    public void setVersion(int version) { this.version = version; }
 }

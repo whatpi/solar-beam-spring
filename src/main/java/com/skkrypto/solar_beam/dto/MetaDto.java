@@ -40,6 +40,16 @@ public class MetaDto {
     @JsonProperty("status")
     private StatusDto status;
 
-    // Getters and Setters
-    // ... 모든 필드에 대한 Getter/Setter 추가 ...
+    public long getComputeUnitsConsumed() {return computeUnitsConsumed;}
+    public Object getErr() {return err;}
+    public long getFee() {return fee;}
+    public List<InnerInstructionDto> getInnerInstructions() {return innerInstructions;}
+    public List<String> getLogMessages() {return logMessages;}
+    public List<Long> getPostBalances() {return postBalances;}
+    public List<TokenBalanceDto> getPostTokenBalances() {return postTokenBalances;}
+    public List<Long> getPreBalances() {return preBalances;}
+    public List<TokenBalanceDto> getPreTokenBalances() {return preTokenBalances;}
+    public List<Object> getRewards() {return rewards;}
+    public StatusDto getStatus() {return status;}
+
 }

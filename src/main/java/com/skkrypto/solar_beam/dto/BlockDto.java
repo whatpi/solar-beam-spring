@@ -28,6 +28,4 @@ public class BlockDto {
     @JsonProperty("transactions")
     private List<SolanaTransactionDto> transactions; // 기존에 만든 DTO 재사용
 
-    // Getters and Setters
-    // ... 모든 필드에 대한 Getter/Setter 추가 ...
 }

@@ -20,6 +20,9 @@ public class TokenBalanceDto {
     @JsonProperty("uiTokenAmount")
     private UiTokenAmountDto uiTokenAmount;
 
-    // Getters and Setters
-    // ... 모든 필드에 대한 Getter/Setter 추가 ...
+    public UiTokenAmountDto getUiTokenAmount() {return uiTokenAmount;}
+    public int getAccountIndex() {return accountIndex;}
+    public String getMint() {return mint;}
+    public String getOwner() {return owner;}
+    public String getProgramId() {return programId;}
 }

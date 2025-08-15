@@ -18,4 +18,10 @@ public class AddressTableLookupDto {
 
     // Getters and Setters
     // ... 모든 필드에 대한 Getter/Setter 추가 ...
+
+    public String getAccountKey() { return accountKey; }
+
+    public List<Integer> getReadonlyIndexes() { return readonlyIndexes; }
+
+    public List<Integer> getWritableIndexes() { return writableIndexes; }
 }

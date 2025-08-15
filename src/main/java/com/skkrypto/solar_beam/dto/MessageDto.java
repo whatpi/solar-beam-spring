@@ -19,6 +19,9 @@ public class MessageDto {
     @JsonProperty("recentBlockhash")
     private String recentBlockhash;
 
-    // Getters and Setters
-    // ... 모든 필드에 대한 Getter/Setter 추가 ...
+    public List<AccountKeyDto> getAccountKeys() { return accountKeys; }
+    public List<AddressTableLookupDto> getAddressTableLookups() { return addressTableLookups; }
+    public List<InstructionDto> getInstructions() { return instructions; }
+    public String getRecentBlockhash() { return recentBlockhash; }
+
 }

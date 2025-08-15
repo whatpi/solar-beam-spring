@@ -19,6 +19,8 @@ CREATE TABLE accounts (
     data JSONB
 );
 
+
+
 -- owner가 토큰 프로그램 -> 토큰 계좌
 -- owner가 orca whirlpool -> 유동성 풀
 -- owner가 시스템 프로그램 -> 사용자 지갑
@@ -52,8 +54,9 @@ CREATE TABLE transactions (
     recent_blockhash VARCHAR(44) NOT NULL,
     fee BIGINT NOT NULL,
     compute_units_consumed BIGINT,
-    error_message TEXT,
-    version VARCHAR(20),
+--     error_message TEXT,
+    -- 에러 있는 애들은 안 받는 걸로
+    -- version VARCHAR(10),
     -- 로그 메세지 검색을 유저가 원할 수 있음.. 따로 테이블을 만들어야할 가능성
     log_messages TEXT[],
     PRIMARY KEY (primary_signature, block_time)
@@ -346,4 +349,8 @@ SELECT add_continuous_aggregate_policy('pool_price_ohlc_5m',
 -- instruction data + 프로그램 아이디를 보고
 -- 정의된 디코딩 방식으로 함수 수정
 -- 이건 programs 테이블이 따로 있고 여기다가 일관적인 디코딩 방식을 텍스트로 저장해놓을까?
+
+
+
+--- staging
 

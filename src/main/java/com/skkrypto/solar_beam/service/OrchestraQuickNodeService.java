@@ -4,10 +4,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.skkrypto.solar_beam.dto.BlockMetadataDto;
-import com.skkrypto.solar_beam.dto.ChunkMessageDto;
 import com.skkrypto.solar_beam.entity.Block;
 import com.skkrypto.solar_beam.entity.BlockId;
 import com.skkrypto.solar_beam.repository.BlockRepository;
@@ -18,17 +15,11 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
 
 
 @Service
@@ -141,6 +132,9 @@ public class OrchestraQuickNodeService {
         final int CHUNK_SIZE = 100;
         Short chunkCounter = 0;
         int txInChunk = 0;
+
+        int startTxIdx = 0;
+
         ByteArrayOutputStream baos = new ByteArrayOutputStream(64 * 1024);
         JsonGenerator gen = null;
 
@@ -166,10 +160,11 @@ public class OrchestraQuickNodeService {
             if (txInChunk == CHUNK_SIZE) {
                 gen.writeEndArray();
                 gen.flush();
-                publishChunk(slot, blockTime, chunkCounter, baos.toByteArray(), txInChunk);
+                publishChunk(slot, blockTime, chunkCounter, baos.toByteArray(), startTxIdx);
                 gen.close();
                 gen = null;
                 chunkCounter++;
+                startTxIdx += txInChunk;
                 txInChunk = 0;
             }
         }
@@ -177,7 +172,7 @@ public class OrchestraQuickNodeService {
         if (gen != null && txInChunk > 0) {
             gen.writeEndArray();
             gen.flush();
-            publishChunk(slot, blockTime, chunkCounter, baos.toByteArray(), txInChunk);
+            publishChunk(slot, blockTime, chunkCounter, baos.toByteArray(), startTxIdx);
             gen.close();
             gen = null;
             chunkCounter++;
@@ -185,7 +180,7 @@ public class OrchestraQuickNodeService {
         return chunkCounter;
     }
 
-    private static final String EXCHANGE = "solar-beam-exchange";
+    private static final String EXCHANGE = "quicknode-block-exchange";
     private static final String CHUNK_ROUTING = "tx-chunk";
 
     private void publishChunk(
@@ -193,21 +188,22 @@ public class OrchestraQuickNodeService {
             OffsetDateTime blockTime,
             int chunkIndex,
             byte[] body,
-            int txCount) {
+            int startTxIdx
+    ) {
         rabbitTemplate.convertAndSend(EXCHANGE, CHUNK_ROUTING, body, m -> {
             var props = m.getMessageProperties();
             props.setDeliveryMode(org.springframework.amqp.core.MessageDeliveryMode.PERSISTENT);
 
             props.setHeader("slot", slot);
-            props.setHeader("blockTime", blockTime);
+            props.setHeader("blockTime", blockTime.toString());
             props.setHeader("chunkIndex", chunkIndex);
-            props.setHeader("txCount", txCount);
+            props.setHeader("startTxIdx", startTxIdx);
 
             props.setMessageId(java.util.UUID.randomUUID().toString());
             return m;
         });
 
-        logger.info("📤 chunk published: slot={}, idx={}, txCount={}", slot, chunkIndex, txCount);
+        logger.info("📤 chunk published: slot={}, idx={}, startTxIdx={}", slot, chunkIndex, startTxIdx);
     }
 }
 

@@ -41,11 +41,11 @@ public class Transaction {
     @Column(name = "compute_units_consumed")
     private Long computeUnitsConsumed;
 
-    @Column(name = "error_message", columnDefinition = "TEXT")
-    private String errorMessage;
+//    @Column(name = "error_message", columnDefinition = "TEXT")
+//    private String errorMessage;
 
-    @Column(name = "version", length = 20)
-    private String version;
+//    @Column(name = "version", length = 20)
+//    private String version;
 
     @Type(ListArrayType.class)
     @Column(name = "log_messages", columnDefinition = "text[]")

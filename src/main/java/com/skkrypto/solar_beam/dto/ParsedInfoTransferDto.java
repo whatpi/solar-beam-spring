@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 // rdb에서 일일히 검사하기 힘들어서 애플리케션 레벨에서 무결성 보장해야 (fk 관련)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ParsedInfoDto {
+public class ParsedInfoTransferDto {
 
     @JsonProperty("authority")
     private String authority;
