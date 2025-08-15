@@ -11,6 +11,7 @@ import java.time.OffsetDateTime;
 @Setter
 @EqualsAndHashCode
 public class TransactionAccountId implements Serializable {
-    private Long id;
+    private String txPrimarySignature;
+    private Short accountIndexInTx;
     private OffsetDateTime txBlockTime;
 }

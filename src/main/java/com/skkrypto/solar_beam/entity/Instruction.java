@@ -3,7 +3,8 @@ package com.skkrypto.solar_beam.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 
 @Getter
@@ -38,20 +39,23 @@ public class Instruction {
     @Column(name = "raw_data", columnDefinition = "TEXT")
     private String rawData;
 
-    @Column(name = "parsed_info_amount")
-    private Integer parsedInfoAmount;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parsed_info_authroity")
-    private Account authority;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parsed_info_destination")
-    private Account destination;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parsed_info_source")
-    private Account source;
+//    @Column(name = "parsed_info_amount")
+//    private Integer parsedInfoAmount;
+//
+//    @ManyToOne(fetch = FetchType.LAZY)
+//    @JoinColumn(name = "parsed_info_authroity")
+//    private Account authority;
+//
+//    @ManyToOne(fetch = FetchType.LAZY)
+//    @JoinColumn(name = "parsed_info_destination")
+//    private Account destination;
+//
+//    @ManyToOne(fetch = FetchType.LAZY)
+//    @JoinColumn(name = "parsed_info_source")
+//    private Account source;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "parsed_info", columnDefinition = "jsonb")
+    private String parsedInfo;
 
     @Column(name = "parsed_type", length = 10)
     private String parsedType;

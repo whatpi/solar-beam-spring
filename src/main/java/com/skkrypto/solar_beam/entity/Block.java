@@ -11,7 +11,7 @@ import java.time.OffsetDateTime;
 @Entity
 @Table(name = "blocks", indexes = {
         @Index(name = "idx_blocks_previous_blockhash", columnList = "previous_blockhash"),
-        @Index(name = "idx_blocks_block_height", columnList = "block_height")
+//        @Index(name = "idx_blocks_block_height", columnList = "block_height"),
 })
 @IdClass(BlockId.class)
 public class Block {
@@ -35,4 +35,17 @@ public class Block {
 
     @Column(name = "previous_blockhash", length = 44, nullable = false)
     private String previousBlockhash;
+
+    @Column(name = "status", length = 20, nullable = false)
+    private String status;
+
+    @Column(name = "total_chunks")
+    private Short totalChunks;
+
+    @Column(name = "process_chunks")
+    private Short processChunks = 0;
+
+    public BlockId getBlockId() {
+        return new BlockId(slot, blockTime);
+    }
 }

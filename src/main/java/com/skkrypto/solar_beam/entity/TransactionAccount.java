@@ -10,26 +10,22 @@ import java.time.OffsetDateTime;
 @Setter
 @Entity
 @Table(name = "transaction_accounts", indexes = {
-        @Index(name = "idx_transaction_accounts_pubkey", columnList = "account_pubkey"),
-        @Index(name = "idx_transaction_accounts_signature", columnList = "signature")
+        @Index(name = "idx_transaction_accounts_pubkey", columnList = "account_pubkey")
 })
 @IdClass(TransactionAccountId.class)
 public class TransactionAccount {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
+    @Column(name = "tx_primary_signature", length = 88, nullable = false)
+    private String txPrimarySignature;
+
+    @Id
+    @Column(name = "account_index_in_tx", nullable = false)
+    private Short accountIndexInTx;
 
     @Id
     @Column(name = "tx_block_time")
     private OffsetDateTime txBlockTime;
-
-    @Column(name = "tx_primary_signature", length = 88, nullable = false)
-    private String txPrimarySignature;
-
-    @Column(name = "account_index_in_tx", nullable = false)
-    private Short accountIndexInTx;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_pubkey", referencedColumnName = "pubkey", nullable = false)

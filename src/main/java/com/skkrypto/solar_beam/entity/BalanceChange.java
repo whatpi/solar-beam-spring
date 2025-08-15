@@ -10,6 +10,7 @@ import java.time.OffsetDateTime;
 @Setter
 @Entity
 @Table(name = "balance_changes", indexes = {
+        @Index(name = "idx_balance_changes_transactions_tx_primary_signature", columnList = "tx_primary_signature"),
         @Index(name = "idx_balance_changes_accounts_account_pubkey", columnList = "account_pubkey")
 })
 @IdClass(BalanceChangeId.class)
