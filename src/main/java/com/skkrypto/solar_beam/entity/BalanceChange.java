@@ -1,14 +1,16 @@
 package com.skkrypto.solar_beam.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.OffsetDateTime;
 
 @Getter
 @Setter
 @Entity
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "balance_changes", indexes = {
         @Index(name = "idx_balance_changes_transactions_tx_primary_signature", columnList = "tx_primary_signature"),
         @Index(name = "idx_balance_changes_accounts_account_pubkey", columnList = "account_pubkey")
@@ -17,7 +19,7 @@ import java.time.OffsetDateTime;
 public class BalanceChange {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     @Column(name = "id")
     private Long id;
 

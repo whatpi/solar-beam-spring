@@ -1,14 +1,16 @@
 package com.skkrypto.solar_beam.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.OffsetDateTime;
 
 @Getter
 @Setter
 @Entity
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "instruction_accounts", indexes = {
         @Index(name = "idx_instruction_accounts_account_pubkey", columnList = "account_pubkey"),
         @Index(name = "idx_instruction_accounts_instruction_id", columnList = "instruction_id")
@@ -17,13 +19,13 @@ import java.time.OffsetDateTime;
 public class InstructionAccount {
 
     @Id
-    @Column(name = "instruction_id")
-    private Long instructionId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "instruction_id", referencedColumnName = "id")
+    private Instruction instructionId;
 
     @Id
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "account_pubkey", referencedColumnName = "pubkey")
-    private Account account;
+    @Column(name = "account_pubkey")
+    private String accountPubkey;
 
     @Column(name = "instruction_tx_block_time", nullable = false)
     private OffsetDateTime instructionTxBlockTime;

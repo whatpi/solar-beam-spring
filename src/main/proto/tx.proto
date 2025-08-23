@@ -1,0 +1,170 @@
+syntax = "proto3";
+
+// 패키지 이름을 지정하여 메시지 이름 충돌을 방지합니다.
+package com.skkrypto.solar_beam.proto;
+
+option java_package = "com.skkrypto.solar_beam.proto";
+option java_multiple_files = true;
+
+// status 필드의 {"Ok": null}을 표현하기 위해 import 합니다.
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto"; // 가변적인 'info' 필드를 위해 사용
+import "google/protobuf/wrappers.proto";
+
+message TxBatch {
+  repeated SolanaTransaction items = 1; // 100개를 여기 넣음
+}
+
+
+// 블럭 하나
+message Block {
+  uint64 block_height = 1;
+  uint64 block_time = 2;
+  string blockhash = 3;
+  uint64 parent_slot = 4;
+  string previous_blockhase = 5;
+  repeated Reward rewards = 6;
+  repeated SolanaTransaction transactions = 7;
+  uint64 slot = 8;
+  uint64 numRewardPartitions = 9;
+}
+
+
+// 최상위 트랜잭션 메시지
+message SolanaTransaction {
+  Meta meta = 1;
+  Transaction transaction = 2;
+  // version 필드는 'legacy' 또는 숫자(0)가 될 수 있으므로,
+  // 여기서는 oneof를 사용해 명확하게 구분합니다.
+  oneof version_info {
+    string legacy = 3;
+    uint32 version_number = 4;
+  }
+}
+
+// meta 필드에 해당하는 메시지
+message Meta {
+  uint64 fee = 1;
+  repeated int64 pre_balances = 2;
+  repeated int64 post_balances = 3;
+  repeated TokenBalance pre_token_balances = 4;
+  repeated TokenBalance post_token_balances = 5;
+  repeated string log_messages = 6;
+  repeated InnerInstruction inner_instructions = 7;
+  uint64 compute_units_consumed = 8;
+  SolanaError err = 9;
+  Status status = 10;
+  repeated Reward rewards = 11;
+  uint64 cost_units = 12;
+}
+
+message Status {
+  oneof result {
+    google.protobuf.Empty ok = 1; // JSON의 {"Ok": null}
+    SolanaError err = 2;          // JSON의 {"Err": {...}}
+  }
+}
+
+// 'err' 필드와 'status.Err' 필드가 공통으로 재사용하는 에러 메시지
+message SolanaError {
+  oneof error_type {
+    InstructionError instruction_error = 1; // JSON의 {"InstructionError": [...]}
+  }
+  // 모르는 필드
+  string kind = 98;
+  google.protobuf.Struct payload = 99;
+}
+
+// "InstructionError": [index, {ErrorDetail}] 구조
+message InstructionError {
+  uint32 instruction_index = 1;
+
+  oneof error_details {
+    uint32 custom = 2; // JSON의 {"Custom": 6003}
+    // 다른 에러 상세 내용이 있다면 추가
+  }
+}
+
+message Reward {
+  string pubkey = 1;
+  int64 lamports = 2;
+  string post_balance = 3; // string으로 처리하는 것이 안전
+  string reward_type = 4;
+  google.protobuf.UInt32Value commission = 5;
+}
+
+
+// transaction 필드에 해당하는 메시지
+message Transaction {
+  TransactionMessage message = 1;
+  repeated string signatures = 2; // base58 인코딩된 서명 문자열
+}
+
+// transaction.message 필드
+message TransactionMessage {
+  repeated AccountKey account_keys = 1;
+  repeated Instruction instructions = 2;
+  string recent_blockhash = 3;
+  repeated AddressTableLookup address_table_lookups = 4;
+}
+
+// --- 하위 구조 상세 정의 ---
+
+message AccountKey {
+  string pubkey = 1;
+  bool signer = 2;
+  bool writable = 3;
+  string source = 4;
+}
+
+message Instruction {
+  string program_id = 1;
+
+  // instruction에 사용된 계정의 인덱스 목록
+  repeated string accounts = 2;
+
+  // JSON의 'data' (base58) 또는 'parsed' 객체 중 하나만 존재하므로 oneof를 사용합니다.
+  oneof instruction_details {
+    // Ingestor에서 base58 디코딩 후 순수 바이트로 저장
+    bytes data = 3;
+    ParsedInstruction parsed = 4;
+  }
+
+  uint32 stack_height = 5;
+}
+
+// 파싱된 instruction을 위한 메시지
+message ParsedInstruction {
+  string type = 1;
+
+  // 'info' 필드는 instruction 타입마다 구조가 완전히 다릅니다.
+  // google.protobuf.Struct를 사용하면 어떤 JSON 구조든 유연하게 담을 수 있습니다.
+  google.protobuf.Struct info = 2;
+}
+
+
+message TokenBalance {
+  uint32 account_index = 1;
+  string mint = 2;
+  string owner = 3;
+  UiTokenAmount ui_token_amount = 4;
+  string program_id = 5;
+}
+
+message UiTokenAmount {
+  string amount = 1; // 매우 큰 숫자일 수 있으므로 string으로 처리
+  uint32 decimals = 2;
+  google.protobuf.DoubleValue ui_amount = 3;
+  string ui_amount_string = 4;
+}
+
+message InnerInstruction {
+  uint32 index = 1;
+  repeated Instruction instructions = 2;
+}
+
+message AddressTableLookup {
+  string account_key = 1;
+  repeated uint32 readonly_indexes = 2;
+  repeated uint32 writable_indexes = 3;
+}

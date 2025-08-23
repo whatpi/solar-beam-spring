@@ -29,6 +29,9 @@ public class RabbitMQConfig {
     public static final String DLQ_QUEUE = "dlq-queue";
     public static final String DLQ_ROUTING = "dlq";
 
+    public static final String FINALIZE_QUEUE = "finalize-queue";
+    public static final String FINALIZE_ROUTING = "finalize";
+
     // Exchange
     @Bean
     public TopicExchange exchange() {
@@ -48,6 +51,11 @@ public class RabbitMQConfig {
                 .withArgument("x-dead-letter-exchange", EXCHANGE)
                 .withArgument("x-dead-letter-routing-key", DLQ_ROUTING)
                 .build();
+    }
+
+    @Bean
+    public Queue finalizeQue() {
+        return QueueBuilder.durable(FINALIZE_QUEUE).build();
     }
 
     @Bean
@@ -77,6 +85,13 @@ public class RabbitMQConfig {
                 .with(DLQ_ROUTING);
     }
 
+    @Bean
+    public Binding bindFinalizingQueue(Queue finalizeQue, TopicExchange exchange) {
+        return BindingBuilder.bind(finalizeQue)
+                .to(exchange)
+                .with(FINALIZE_ROUTING);
+    }
+
     // 컨테이너 팩토리: orchestration 큐
     @Bean
     public SimpleRabbitListenerContainerFactory orchestrationContainerFactory(
@@ -87,6 +102,17 @@ public class RabbitMQConfig {
         factory.setConcurrentConsumers(2);
         factory.setMaxConcurrentConsumers(4);
         factory.setPrefetchCount(1); // 큰 메시지는 1~2 권장
+        return factory;
+    }
+
+    @Bean
+    public SimpleRabbitListenerContainerFactory finalizingContainerFactory(
+            ConnectionFactory connectionFactory,
+            SimpleRabbitListenerContainerFactoryConfigurer configurer) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        configurer.configure(factory, connectionFactory);
+        factory.setConcurrentConsumers(1);
+        factory.setPrefetchCount(1);
         return factory;
     }
 

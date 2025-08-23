@@ -4,6 +4,7 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.5'
 	// Flyway 플러그인 버전은 그대로 유지합니다.
 	id 'org.flywaydb.flyway' version '10.15.0'
+	id 'com.google.protobuf' version '0.9.4'
 }
 
 group = 'com.skkrypto'
@@ -34,6 +35,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-amqp'
 	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.17.1'
+	implementation 'com.google.protobuf:protobuf-java:4.27.1'
+	implementation 'com.google.protobuf:protobuf-java-util:4.27.1'
 
 	// 2. PostgreSQL 드라이버 (애플리케이션 실행에 필수)
 	runtimeOnly 'org.postgresql:postgresql'
@@ -55,6 +58,8 @@ dependencies {
 
 	implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.10.3'
 
+	implementation 'org.springframework.kafka:spring-kafka'
+
 //	flywayRuntime 'org.postgresql:postgresql:42.6.0'
 
 //	flyway 'org.postgresql:postgresql'
@@ -65,6 +70,38 @@ dependencies {
 //	flywayPlugins 'org.flywaydb:flyway-database-postgresql'
 //	flywayPlugins 'org.postgresql:postgresql'
 }
+
+protobuf {
+	// Protobuf 컴파일러(protoc) 버전을 지정합니다.
+	protoc {
+		artifact = "com.google.protobuf:protoc:4.27.1"
+	}
+
+	// 생성된 자바 코드를 저장할 위치를 지정합니다.
+	// 기본적으로 'build/generated/source/proto/main/java'에 생성됩니다.
+	generateProtoTasks {
+		all().each { task ->
+			task.builtins {
+				java {}
+			}
+		}
+	}
+}
+
+sourceSets {
+	main {
+		java {
+			srcDirs += 'src/main/java'
+			srcDirs += 'build/generated/source/proto/main/java'
+		}
+		proto {
+			// 명시하지 않아도 기본값이지만, 확실히 지정
+			srcDir 'src/main/proto'
+		}
+	}
+}
+
+
 
 tasks.named('test') {
 	useJUnitPlatform()

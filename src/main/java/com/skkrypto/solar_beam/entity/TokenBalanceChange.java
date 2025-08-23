@@ -1,14 +1,17 @@
 package com.skkrypto.solar_beam.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Getter
 @Setter
 @Entity
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "token_balance_changes", indexes = {
         @Index(name = "idx_token_balance_changes_tx_fk", columnList = "tx_primary_signature"),
         @Index(name = "idx_token_balance_changes_account", columnList = "account_pubkey"),
@@ -49,11 +52,11 @@ public class TokenBalanceChange {
     @JoinColumn(name = "program_id", referencedColumnName = "pubkey")
     private Account program;
 
-    @Column(name = "pre_amount_raw", length = 40)
-    private String preAmountRaw;
+    @Column(name = "pre_amount_raw")
+    private BigDecimal preAmountRaw;
 
-    @Column(name = "post_amount_raw", length = 40)
-    private String postAmountRaw;
+    @Column(name = "post_amount_raw")
+    private BigDecimal postAmountRaw;
 
     @Column(name = "decimals")
     private Short decimals;

@@ -1,14 +1,18 @@
 package com.skkrypto.solar_beam.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 
 @Getter
 @Setter
 @Entity
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "blocks", indexes = {
         @Index(name = "idx_blocks_previous_blockhash", columnList = "previous_blockhash"),
 //        @Index(name = "idx_blocks_block_height", columnList = "block_height"),
@@ -36,8 +40,8 @@ public class Block {
     @Column(name = "previous_blockhash", length = 44, nullable = false)
     private String previousBlockhash;
 
-    @Column(name = "status", length = 20, nullable = false)
-    private String status;
+    @Column(name = "backend_status", length = 20, nullable = false)
+    private String bakendStatus = "PROCESSING";
 
     @Column(name = "total_chunks")
     private Short totalChunks;

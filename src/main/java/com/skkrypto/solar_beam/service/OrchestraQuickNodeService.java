@@ -4,22 +4,29 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.skkrypto.solar_beam.dto.SolanaTransactionDto;
 import com.skkrypto.solar_beam.entity.Block;
 import com.skkrypto.solar_beam.entity.BlockId;
+import com.skkrypto.solar_beam.proto.SolanaTransaction;
 import com.skkrypto.solar_beam.repository.BlockRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
+import com.google.protobuf.util.JsonFormat;
+import com.skkrypto.solar_beam.proto.*;
 
-import java.io.ByteArrayOutputStream;
+
 import java.time.Instant;
 import java.time.OffsetDateTime;
 
 
 import java.io.IOException;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Service
@@ -48,8 +55,13 @@ public class OrchestraQuickNodeService {
             Block block = parseMetaDataAndCreateBlock(slot, parser);
             // 퍼블리싱
             Short total_chuncks = streamAndPublishChunks(parser, block.getBlockId());
-            // 청크 수 저장
+
+            // 토탈 청크 저장
             block.setTotalChunks(total_chuncks);
+
+            // 비동기로 처리 될 가능성..
+            blockRepository.save(block);
+
         } catch (IOException e) {
             // 블럭 상태를 failed로 변경??
             throw new RuntimeException("Error processing stream for slot " + slot, e);
@@ -115,8 +127,9 @@ public class OrchestraQuickNodeService {
             }
         }
 
-        block.setStatus("PROCESSING");
-        return blockRepository.save(block);
+        block.setBakendStatus("PROCESSING");
+        // default값이어서 상관없음
+        return block;
     }
 
     // tx 100개씩 묶기 시작
@@ -127,54 +140,45 @@ public class OrchestraQuickNodeService {
         }
         // 위치 [
 
-
         // chunk size
         final int CHUNK_SIZE = 100;
         Short chunkCounter = 0;
         int txInChunk = 0;
-
         int startTxIdx = 0;
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(64 * 1024);
-        JsonGenerator gen = null;
+        TxBatch.Builder txBatchBuilder = TxBatch.newBuilder();
 
         final long slot =  blockId.getSlot();
         final OffsetDateTime blockTime = blockId.getBlockTime();
-        final JsonFactory jf = objectMapper.getFactory();
-
 
         // parser가 tx를 size번 동안 버퍼에 넣음
+        // 엔드 어레이가 기준인 이유는 {만 만나면 점프할거여서..
         while (parser.nextToken() != JsonToken.END_ARRAY) {
-            // 위치 {
-            if (gen == null) {
-                baos.reset();
-                gen = jf.createGenerator(baos);
-                gen.writeStartArray();
-                txInChunk = 0;
-            }
 
-            gen.copyCurrentEvent(parser);
+            JsonNode node = objectMapper.readTree(parser);
+            String strJson = objectMapper.writeValueAsString(node);
+
+            SolanaTransaction.Builder txBuilder = SolanaTransaction.newBuilder();
+            JsonFormat.parser()
+                    .ignoringUnknownFields()
+                    .merge(strJson, txBuilder);
+
+            txBatchBuilder.addItems(txBuilder.build());
             txInChunk++;
 
             // if counter = size 번이면 큐에 export
             if (txInChunk == CHUNK_SIZE) {
-                gen.writeEndArray();
-                gen.flush();
-                publishChunk(slot, blockTime, chunkCounter, baos.toByteArray(), startTxIdx);
-                gen.close();
-                gen = null;
+                publishChunk(slot, blockTime, chunkCounter, txBatchBuilder.build().toByteArray(), startTxIdx);
                 chunkCounter++;
                 startTxIdx += txInChunk;
                 txInChunk = 0;
+                txBatchBuilder.clear();
             }
         }
 
-        if (gen != null && txInChunk > 0) {
-            gen.writeEndArray();
-            gen.flush();
-            publishChunk(slot, blockTime, chunkCounter, baos.toByteArray(), startTxIdx);
-            gen.close();
-            gen = null;
+        if (txInChunk > 0) {
+            publishChunk(slot, blockTime, chunkCounter, txBatchBuilder.build().toByteArray(), startTxIdx);
+            txBatchBuilder.clear();
             chunkCounter++;
         }
         return chunkCounter;

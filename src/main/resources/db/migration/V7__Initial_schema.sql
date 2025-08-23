@@ -4,7 +4,7 @@ CREATE TABLE accounts (
     pubkey VARCHAR(44) PRIMARY KEY,
     -- 1단계 (RPC 호출 없이): 워커는 먼저 token_balance_changes 테이블을 조회합니다. 여기에 기록된 모든 token_account_pubkey에 대해, account_metadata 테이블에 inferred_type = 'TOKEN_ACCOUNT'와 owner_pubkey를 채워 넣습니다. 이 과정은 RPC 호출이 전혀 필요 없는 매우 빠른 작업입니다.
     -- 2단계 (RPC 호출 최소화): 그 후, 아직도 account_metadata에 정보가 없는 나머지 계정들(일반 지갑, 풀 계정 등)에 대해서만 getAccountInfo RPC를 호출하여 owner 정보를 가져옵니다.
-    owner_pubkey VARCHAR(44) REFERENCES accounts(pubkey),
+    owner_pubkey VARCHAR(44),
     -- sol 잔액
     lamports BIGINT,
     -- sol 잔액이나 토큰 밸런스는 balance change에서 조회하면 됨
@@ -13,10 +13,31 @@ CREATE TABLE accounts (
     -- 여기서 종류: 풀, 솔라나 지갑, 토큰 계좌인지 태그
     -- POOL. WALLET. TOKEN_ACCOUNT, TOKEN, DEX, PROGRAM
     type VARCHAR(50),
+    mint_address VARCHAR(44), -- 토큰 계정 전용 열
+    name VARCHAR(100),
     -- fk가 아닌 이유는 전체 블럭 데이터를 못 갖고 오니까 검사기 강제를 피하기 위해
     create_account_in_tx VARCHAR(88),
+    first_seen_at TIMESTAMP WITH TIME ZONE, -- 최초 발견 시간
     last_updated_at TIMESTAMP WITH TIME ZONE,
     data JSONB
+);
+
+CREATE index idx_accounts_owner_pubkey ON accounts(owner_pubkey);
+
+CREATE TABLE tokens (
+    -- 기본 키: 토큰의 고유 주소 (Mint Address)
+    mint_address VARCHAR(44) PRIMARY KEY,
+    -- 온체인 데이터 (RPC로 조회 가능)
+    decimals SMALLINT NOT NULL,          -- 토큰의 소수점 자릿수
+    supply NUMERIC,                      -- 현재 총 공급량
+    mint_authority VARCHAR(44),          -- 토큰 추가 발행 권한을 가진 계정 주소 (권한 소멸 시 NULL)
+    freeze_authority VARCHAR(44),        -- 토큰 계좌 동결 권한을 가진 계정 주소 (권한 소멸 시 NULL)
+    -- 오프체인 메타데이터 (토큰 리스트 등 외부에서 가져오는 정보)
+    symbol VARCHAR(20),                  -- 토큰 심볼 (예: USDC, SOL)
+    name VARCHAR(100),                   -- 토큰의 전체 이름 (예: USD Coin)
+    logo_uri TEXT,                       -- 토큰 로고 이미지 URL
+    -- 관리용 데이터
+    last_updated_at TIMESTAMP WITH TIME ZONE  -- 이 토큰의 정보를 마지막으로 업데이트한 시간
 );
 
 
@@ -34,16 +55,32 @@ CREATE TABLE blocks (
     block_time TIMESTAMP WITH TIME ZONE NOT NULL,
     parent_slot BIGINT             NOT NULL,
     previous_blockhash VARCHAR(44) NOT NULL,
-    status VARCHAR(20) NOT NULL,
+    backend_status VARCHAR(20) DEFAULT 'PROCESSING',
     total_chunks SMALLINT,
-    process_chunks SMALLINT DEFAULT 0,
-    PRIMARY KEY (slot, block_time)
+    process_chunks SMALLINT DEFAULT 0
+    -- rewards
+--     PRIMARY KEY (slot, block_time)
 );
 
 SELECT create_hypertable('blocks', 'block_time');
 
 CREATE INDEX idx_blocks_previous_blockhash ON blocks(previous_blockhash);
 -- CREATE INDEX idx_blocks_block_height ON blocks(block_height);
+
+CREATE TABLE rewards (
+    block_slot BIGINT NOT NULL,            -- 이 보상이 포함된 블록 슬롯 (FK)
+    idx_in_block INT NOT NULL,
+    block_time timestamptz NOT NULL,
+    pubkey VARCHAR(44) NOT NULL,           -- 보상을 받은 계정 주소
+    lamports BIGINT NOT NULL,              -- 보상액 (lamports 단위)
+    post_balance BIGINT NOT NULL,          -- 보상 후 계정 잔액
+    reward_type VARCHAR(7) NOT NULL,       -- 보상 유형 (Fee, Rent, Staking, Voting)
+    commission SMALLINT                    -- 검증인 수수료 (Staking, Voting 시에만 값 존재, 나머지는 NULL)
+--     PRIMARY KEY (block_slot, idx_in_block, block_time)
+);
+
+SELECT create_hypertable('rewards', 'block_time');
+
 
 CREATE TABLE transactions (
     primary_signature VARCHAR(88) NOT NULL,
@@ -54,12 +91,16 @@ CREATE TABLE transactions (
     recent_blockhash VARCHAR(44) NOT NULL,
     fee BIGINT NOT NULL,
     compute_units_consumed BIGINT,
---     error_message TEXT,
+    -- err / err_instuction 선택
+    err_kind VARCHAR(30),
+    err_payload jsonb,
+    err_instruction_idx SMALLINT,
+    err_instruction_custom SMALLINT,
     -- 에러 있는 애들은 안 받는 걸로
-    -- version VARCHAR(10),
+    version VARCHAR(10),
     -- 로그 메세지 검색을 유저가 원할 수 있음.. 따로 테이블을 만들어야할 가능성
-    log_messages TEXT[],
-    PRIMARY KEY (primary_signature, block_time)
+    log_messages TEXT[]
+--     PRIMARY KEY (primary_signature, block_time)
 --     FOREIGN KEY (block_slot, block_time) REFERENCES blocks(slot) ON DELETE CASCADE
 );
 
@@ -74,7 +115,7 @@ CREATE TABLE transaction_accounts (
     -- 트랜잭션 내 계정 목록에서의 순서 (0, 1, 2...)
     account_index_in_tx SMALLINT NOT NULL,
     -- 계정의 공개 키
-    account_pubkey VARCHAR(44) NOT NULL REFERENCES accounts(pubkey),
+    account_pubkey VARCHAR(44) NOT NULL,
     -- 서명자의 실제 서명 값 (VARCHAR(88))
     -- 이 값이 NULL이 아니면 해당 계정은 '서명자'임을 의미함
     signature VARCHAR(88),
@@ -82,9 +123,9 @@ CREATE TABLE transaction_accounts (
     is_writable BOOLEAN NOT NULL,
     -- 해당 계정이 트랜잭션 헤더에 명시되었는지, 주소 룩업 테이블을 통해 참조되었는지 등을 명시
     -- 예: 'STATIC', 'LOOKUP_WRITABLE', 'LOOKUP_READONLY'
-    source_of_account VARCHAR(20) NOT NULL,
+    source_of_account VARCHAR(20) NOT NULL
     -- 한 트랜잭션 내에서 계정의 순서는 고유하므로 이를 복합 기본 키로 사용
-    PRIMARY KEY (tx_primary_signature, account_index_in_tx, tx_block_time)
+--     PRIMARY KEY (tx_primary_signature, account_index_in_tx, tx_block_time)
 --     FOREIGN KEY (tx_primary_signature, tx_block_time) REFERENCES transactions(primary_signature, block_time) ON DELETE CASCADE
 );
 
@@ -106,9 +147,9 @@ CREATE TABLE instructions(
     tx_block_time TIMESTAMP WITH TIME ZONE NOT NULL,
     -- ex 2.1.1
     ix_path TEXT NOT NULL,
-    depth SMALLINT NOT NULL,
-    program_id VARCHAR(44) REFERENCES accounts(pubkey),
-    raw_data TEXT,
+    stack SMALLINT NOT NULL,
+    program_id VARCHAR(44),
+    raw_data BYTEA,
     -- background woker가 비동기 처리해야
     -- 토큰 전송 수량
     -- spl 명령어 종류
@@ -132,7 +173,6 @@ SELECT create_hypertable('instructions', 'tx_block_time');
 CREATE TABLE instruction_accounts (
     instruction_accounts_id BIGSERIAL NOT NULL,
     instruction_id BIGINT NOT NULL,
-    -- FK 관계를 위해 부모 테이블의 PK 컬럼(tx_block_time)을 추가
     instruction_tx_block_time TIMESTAMP WITH TIME ZONE NOT NULL,
     account_pubkey VARCHAR(44) NOT NULL REFERENCES accounts(pubkey),
     account_index_in_instruction SMALLINT NOT NULL,
@@ -151,19 +191,13 @@ CREATE INDEX idx_instruction_accounts_account_pubkey ON instruction_accounts(acc
 CREATE INDEX idx_instruction_accounts_instruction_id ON instruction_accounts(instruction_id);
 
 CREATE TABLE balance_changes(
-    -- 복합키가 너무 길어짐, jpa에서는 복합키를 다루기 어려움
-    id BIGSERIAL NOT NULL,
     tx_primary_signature VARCHAR(88) NOT NULL,
     tx_block_time TIMESTAMP WITH TIME ZONE NOT NULL,
     idx_in_tx SMALLINT NOT NULL,
-    account_pubkey VARCHAR(44) NOT NULL REFERENCES accounts(pubkey),
+    account_pubkey VARCHAR(44) NOT NULL,
     pre_balance BIGINT NOT NULL,
     post_balance BIGINT NOT NULL,
-    -- 마찬가지로 정규화를 해치는 것으로 선택
-    block_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    -- 사실 tx_signature, idx_in_tx, tx_block_time으로 가는게 나았을듯
-    -- id로 조회할 일이 없지 않나? 아 그게 있나? swap_events에 대해서?
-    PRIMARY KEY (id, tx_block_time)
+    block_time TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE INDEX idx_balance_changes_transactions_tx_primary_signature ON balance_changes(tx_primary_signature);
@@ -172,38 +206,48 @@ CREATE INDEX idx_balance_changes_accounts_account_pubkey ON balance_changes(acco
 SELECT create_hypertable('balance_changes', 'tx_block_time');
 
 CREATE TABLE token_balance_changes (
-    id BIGSERIAL NOT NULL,
     tx_primary_signature VARCHAR(88) NOT NULL,
     tx_block_time TIMESTAMP WITH TIME ZONE NOT NULL,
     idx_in_tx SMALLINT NOT NULL,
-    account_pubkey VARCHAR(44) NOT NULL REFERENCES accounts(pubkey),
+    account_pubkey VARCHAR(44) NOT NULL,
     -- accounts에 findOrCreate
-    mint_address VARCHAR(44) NOT NULL REFERENCES accounts(pubkey),
+    mint_address VARCHAR(44) NOT NULL,
     -- accounts에 findOrCreate
-    owner_address VARCHAR(44) REFERENCES accounts(pubkey),
-    program_id VARCHAR(44) REFERENCES accounts(pubkey),
-    pre_amount_raw VARCHAR(40),
-    post_amount_raw VARCHAR(40),
-    decimals SMALLINT,
-    block_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    PRIMARY KEY (id, tx_block_time)
+    owner_address VARCHAR(44),
+    program_id VARCHAR(44),
+    pre_amount_raw NUMERIC,
+    post_amount_raw NUMERIC,
+    decimals SMALLINT
 );
 
-CREATE INDEX idx_token_balance_changes_tx_fk ON token_balance_changes(tx_primary_signature);
-CREATE INDEX idx_token_balance_changes_account ON token_balance_changes(account_pubkey);
-CREATE INDEX idx_token_balance_changes_mint ON token_balance_changes(mint_address);
-CREATE INDEX idx_token_balance_changes_owner ON token_balance_changes(owner_address);
+CREATE INDEX idx_token_balance_changes_tx_fk ON token_balance_changes(tx_primary_signature, tx_block_time DESC);
+CREATE INDEX idx_token_balance_changes_account ON token_balance_changes(account_pubkey, tx_block_time DESC);
+CREATE INDEX idx_token_balance_changes_mint ON token_balance_changes(mint_address, tx_block_time DESC);
+CREATE INDEX idx_token_balance_changes_owner ON token_balance_changes(owner_address, tx_block_time DESC);
 
 SELECT create_hypertable('token_balance_changes', 'tx_block_time');
+
+CREATE TABLE swap_events (
+    block_time TIMESTAMPTZ NOT NULL,
+    program_id VARCHAR(44) NOT NULL,
+    pool_address VARCHAR(44) NOT NULL,
+    tx_signature VARCHAR(44) NOT NULL,
+    ix_path TEXT NOT NULL,
+    -- 스테이블 토큰여부 / 사전순
+    base_mint VARCHAR(44) NOT NULL,   -- 예: SOL
+    quote_mint VARCHAR(44) NOT NULL,  -- 예: USDC
+    base_amount NUMERIC NOT NULL,     -- 준 양
+    quote_amount NUMERIC NOT NULL     -- 받은 양
+);
 
 CREATE TABLE pools (
     id BIGSERIAL PRIMARY KEY,
     name TEXT,
     dex TEXT,
-    reserve_a_pubkey VARCHAR(44) NOT NULL REFERENCES accounts(pubkey),
-    reserve_b_pubkey VARCHAR(44) NOT NULL REFERENCES accounts(pubkey),
-    mint_a VARCHAR(44) NOT NULL REFERENCES accounts(pubkey),
-    mint_b VARCHAR(44) NOT NULL REFERENCES accounts(pubkey),
+    reserve_a_pubkey VARCHAR(44) NOT NULL,
+    reserve_b_pubkey VARCHAR(44) NOT NULL,
+    mint_a VARCHAR(44) NOT NULL,
+    mint_b VARCHAR(44) NOT NULL,
 --     lp_mint VARCHAR(44) REFERENCES accounts(pubkey), -- 옵션
 --     fee_bps INTEGER,                                  -- 옵션
     UNIQUE (reserve_a_pubkey, reserve_b_pubkey)
@@ -354,3 +398,18 @@ SELECT add_continuous_aggregate_policy('pool_price_ohlc_5m',
 
 --- staging
 
+
+-- sniper
+-- 토큰 발행한 블럭과 바로 다음 블럭에서 buy가 실행된 거래양
+
+-- holders
+-- 노드로 파악해야
+-- 양으로 정렬
+
+-- insider
+-- dex(A)와 어떤 계정 B가 제 3의 C로 이동, C의 양
+
+-- bundler
+    -- ??
+
+--
